@@ -73,10 +73,9 @@
         }
         .channel-details {
             flex: 1;
-            overflow-wrap: break-word;
-            word-wrap: break-word;
-            word-break: break-word;
-            white-space: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap; /* Ensures the text stays in a single line */
             min-width: 0;
         }
         .remove-button, .edit-button, .duplicate-button {
@@ -93,7 +92,11 @@
         }
         .duplicate-button {
             background-color: #17a2b8;
-            margin-right: 5px;
+            margin-left: 10px; /* Added spacing between remove and duplicate */
+        }
+        .remove-button {
+            background-color: #dc3545;
+            margin-right: 10px; /* Added spacing between remove and edit */
         }
         .playlist-preview {
             margin-top: 20px;
@@ -266,21 +269,19 @@
 
         // Remove channel
         function removeChannel(index) {
-            channels.splice(index, 1); // Remove from the array
-            renderChannelList();  // Re-render the list
+            channels.splice(index, 1);
+            renderChannelList();
             updatePlaylistContent();
         }
 
         // Edit channel
         function editChannel(index) {
             const channel = channels[index];
-            document.getElementById('groupName').value = channel.groupTitle;
             document.getElementById('channelLogoUrl').value = channel.logo;
             document.getElementById('channelName').value = channel.name;
             document.getElementById('channelUrl').value = channel.url;
 
-            // Remove the channel temporarily from the list while editing
-            removeChannel(index);
+            removeChannel(index);  // Remove the channel from the list while editing
         }
 
         // Duplicate channel
