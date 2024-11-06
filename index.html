@@ -140,14 +140,12 @@
         <h1>M3U Playlist Creator</h1>
         
         <!-- File upload for M3U playlist -->
-        <div class="input-group">         <div class="upload-info">
-            upload your .m3u playlist to modify that here
-        </div>
-            <input type="file" id="uploadPlaylist" accept=".m3u,.m3u8" /> 
+        <div class="input-group">
+            <input type="file" id="uploadPlaylist" accept=".m3u" />
         </div>
 
         <div class="input-group">
-            <input type="text" id="groupName" placeholder="Group Name">
+            <input type="text" id="groupName" placeholder="Group Title">
             <input type="text" id="channelLogoUrl" placeholder="Channel Logo URL">
             <input type="text" id="channelName" placeholder="Channel Name">
             <input type="text" id="channelUrl" placeholder="Channel URL">
@@ -177,6 +175,7 @@
         const uploadPlaylistInput = document.getElementById('uploadPlaylist');
 
         let playlistContent = '#EXTM3U\n';
+        let channels = [];
 
         // Function to parse M3U file
         function parseM3UFile(file) {
@@ -184,7 +183,6 @@
             reader.onload = function(event) {
                 const content = event.target.result;
                 const lines = content.split('\n');
-                let groupName = '';
                 let logo = '';
                 let name = '';
                 let url = '';
@@ -196,12 +194,10 @@
                             logo = match[1];
                             name = match[2].trim();
                         }
-                    } else if (line.startsWith('#EXTGRP')) {
-                        groupName = line.replace('#EXTGRP:', '').trim();
                     } else if (line.startsWith('http')) {
                         url = line.trim();
-                        if (groupName && name && url) {
-                            addChannelToList(groupName, logo, name, url);
+                        if (logo && name && url) {
+                            addChannelToList(logo, name, url);
                         }
                     }
                 });
@@ -218,54 +214,89 @@
         });
 
         // Add channel to the list
-        function addChannelToList(groupName, logo, name, url) {
-            const channelItem = document.createElement('div');
-            channelItem.className = 'channel-item';
-            channelItem.innerHTML = `
-                <img src="${logo}" alt="Logo" class="channel-logo" onerror="this.style.display='none'">
-                <div class="channel-details">
-                    <strong>${name}</strong><br>
-                    Group: ${groupName}<br>
-                    URL: ${url}<br>
-                    Logo: ${logo}
-                </div>
-                <button class="edit-button">Edit</button>
-                <button class="remove-button">Remove</button>
-                <button class="duplicate-button">Duplicate</button>
-            `;
+        function addChannelToList(logo, name, url) {
+            const groupTitle = document.getElementById('groupName').value || "Default Group"; // Default group if not specified
+            const newChannel = {
+                logo,
+                name,
+                url,
+                groupTitle
+            };
 
-            channelItem.querySelector('.remove-button').addEventListener('click', () => {
-                channelList.removeChild(channelItem);
-                updatePlaylistContent();
+            channels.push(newChannel);
+            renderChannelList();
+            updatePlaylistContent();
+        }
+
+        // Render the channel list from state
+        function renderChannelList() {
+            channelList.innerHTML = '';  // Clear the list before re-rendering
+            channels.forEach((channel, index) => {
+                const channelItem = document.createElement('div');
+                channelItem.className = 'channel-item';
+                channelItem.innerHTML = `
+                    <img src="${channel.logo}" alt="Logo" class="channel-logo" onerror="this.style.display='none'">
+                    <div class="channel-details">
+                        <strong>${channel.name}</strong><br>
+                        Group: ${channel.groupTitle}<br>
+                        URL: ${channel.url}<br>
+                        Logo: ${channel.logo}
+                    </div>
+                    <button class="edit-button">Edit</button>
+                    <button class="remove-button">Remove</button>
+                    <button class="duplicate-button">Duplicate</button>
+                `;
+
+                // Attach event listeners for each action
+                channelItem.querySelector('.remove-button').addEventListener('click', () => {
+                    removeChannel(index);
+                });
+
+                channelItem.querySelector('.edit-button').addEventListener('click', () => {
+                    editChannel(index);
+                });
+
+                channelItem.querySelector('.duplicate-button').addEventListener('click', () => {
+                    duplicateChannel(index);
+                });
+
+                channelList.appendChild(channelItem);
             });
+        }
 
-            channelItem.querySelector('.edit-button').addEventListener('click', () => {
-                document.getElementById('groupName').value = groupName;
-                document.getElementById('channelLogoUrl').value = logo;
-                document.getElementById('channelName').value = name;
-                document.getElementById('channelUrl').value = url;
+        // Remove channel
+        function removeChannel(index) {
+            channels.splice(index, 1); // Remove from the array
+            renderChannelList();  // Re-render the list
+            updatePlaylistContent();
+        }
 
-                channelList.removeChild(channelItem);
-                updatePlaylistContent();
-            });
+        // Edit channel
+        function editChannel(index) {
+            const channel = channels[index];
+            document.getElementById('groupName').value = channel.groupTitle;
+            document.getElementById('channelLogoUrl').value = channel.logo;
+            document.getElementById('channelName').value = channel.name;
+            document.getElementById('channelUrl').value = channel.url;
 
-            channelItem.querySelector('.duplicate-button').addEventListener('click', () => {
-                const duplicateChannelItem = document.createElement('div');
-                duplicateChannelItem.className = 'channel-item';
-                duplicateChannelItem.innerHTML = channelItem.innerHTML;
-                channelList.appendChild(duplicateChannelItem);
-                updatePlaylistContent();
-            });
+            // Remove the channel temporarily from the list while editing
+            removeChannel(index);
+        }
 
-            channelList.appendChild(channelItem);
-
-            // Update playlist content
-            playlistContent += `#EXTINF:-1 tvg-logo="${logo}", ${name}\n${url}\n`;
-            updatePlaylistOutput();
+        // Duplicate channel
+        function duplicateChannel(index) {
+            const channel = channels[index];
+            channels.push({ ...channel });  // Add a duplicate channel to the array
+            renderChannelList();
+            updatePlaylistContent();
         }
 
         // Update the playlist output field
-        function updatePlaylistOutput() {
+        function updatePlaylistContent() {
+            playlistContent = '#EXTM3U\n';
+            channels.forEach((channel) => {
+                playlistContent += `#EXTINF:-1 tvg-logo="${channel.logo}" group-title="${channel.groupTitle}", ${channel.name}\n${channel.url}\n`;
+            });
             playlistOutput.value = playlistContent;
         }
 
@@ -286,13 +317,13 @@
 
         // Event listener for Add Channel button
         addChannelButton.addEventListener('click', () => {
-            const groupName = document.getElementById('groupName').value;
             const logo = document.getElementById('channelLogoUrl').value;
             const name = document.getElementById('channelName').value;
             const url = document.getElementById('channelUrl').value;
+            const groupTitle = document.getElementById('groupName').value;
 
-            if (groupName && logo && name && url) {
-                addChannelToList(groupName, logo, name, url);
+            if (logo && name && url) {
+                addChannelToList(logo, name, url);
                 document.getElementById('groupName').value = '';
                 document.getElementById('channelLogoUrl').value = '';
                 document.getElementById('channelName').value = '';
